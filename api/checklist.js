@@ -1,35 +1,35 @@
 // Serverless-функция Vercel: GET отдаёт сохранённое состояние чек-листа,
-// POST сохраняет новое состояние. Хранилище — Redis, подключённый через
-// Vercel Marketplace (Upstash Redis / Redis Cloud и т.п.).
-//
-// Vercel сам подставит переменные окружения после того, как вы подключите
-// Redis-интеграцию в Storage → Marketplace в панели проекта. Названия
-// переменных могут отличаться в зависимости от провайдера — ниже
-// предусмотрены самые частые варианты (KV_REST_API_* и UPSTASH_REDIS_REST_*).
+// POST сохраняет новое состояние. Хранилище — Vercel Blob: нативное
+// хранилище Vercel, бесплатно в пределах Hobby-лимитов (1 ГБ хранилища
+// и 2000 операций записи в месяц), не требует стороннего аккаунта.
 
-const { Redis } = require('@upstash/redis');
+const { put, head, BlobNotFoundError } = require('@vercel/blob');
 
-const redisUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const redisToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-
-const redis = redisUrl && redisToken ? new Redis({ url: redisUrl, token: redisToken }) : null;
-
-const STORAGE_KEY = 'cleaning-checklist-state';
+const PATHNAME = 'cleaning-checklist-state.json';
+const isConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
 
 module.exports = async function handler(req, res) {
-  if (!redis) {
+  if (!isConfigured) {
     res.status(500).json({
       error: 'storage_not_configured',
-      message: 'Redis не подключён. Добавьте Redis-интеграцию в Vercel: Project → Storage → Marketplace, затем сделайте новый деплой.'
+      message: 'Vercel Blob не подключён. Добавьте хранилище: Project → Storage → Create Database → Blob, затем сделайте новый деплой.'
     });
     return;
   }
 
   if (req.method === 'GET') {
     try {
-      const data = await redis.get(STORAGE_KEY);
-      res.status(200).json(data || null);
+      const info = await head(PATHNAME);
+      const fileRes = await fetch(info.url);
+      if (!fileRes.ok) throw new Error('fetch failed ' + fileRes.status);
+      const data = await fileRes.json();
+      res.status(200).json(data);
     } catch (err) {
+      if (err instanceof BlobNotFoundError) {
+        // Ещё ничего не сохраняли — это нормально при первом запуске
+        res.status(200).json(null);
+        return;
+      }
       res.status(500).json({ error: 'storage_read_failed', message: String(err) });
     }
     return;
@@ -42,7 +42,12 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ error: 'invalid_payload' });
         return;
       }
-      await redis.set(STORAGE_KEY, body);
+      await put(PATHNAME, JSON.stringify(body), {
+        access: 'public',
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: 'application/json'
+      });
       res.status(200).json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: 'storage_write_failed', message: String(err) });
