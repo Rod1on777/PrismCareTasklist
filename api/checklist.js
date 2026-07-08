@@ -1,11 +1,10 @@
 // Serverless-функция Vercel: GET отдаёт сохранённое состояние чек-листа,
-// POST сохраняет новое состояние. Хранилище — Vercel Blob (Private-стор):
+// POST сохраняет новое состояние. Хранилище — Vercel Blob (Public-стор):
 // нативное хранилище Vercel, бесплатно в пределах Hobby-лимитов (1 ГБ
 // хранилища и 2000 операций записи в месяц), не требует стороннего
-// аккаунта. Private-стор означает, что файл недоступен по прямой ссылке
-// никому, кроме этой функции — читаем и пишем через SDK с access:'private'.
+// аккаунта.
 
-const { put, get } = require('@vercel/blob');
+const { put, head, BlobNotFoundError } = require('@vercel/blob');
 
 const PATHNAME = 'cleaning-checklist-state.json';
 // Vercel подключает Blob двумя способами: старый — статический токен
@@ -26,16 +25,17 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const result = await get(PATHNAME, { access: 'private' });
-      if (!result || result.statusCode !== 200 || !result.stream) {
+      const info = await head(PATHNAME);
+      const fileRes = await fetch(info.url);
+      if (!fileRes.ok) throw new Error('fetch failed ' + fileRes.status);
+      const data = await fileRes.json();
+      res.status(200).json(data);
+    } catch (err) {
+      if (err instanceof BlobNotFoundError) {
         // Ещё ничего не сохраняли — это нормально при первом запуске
         res.status(200).json(null);
         return;
       }
-      const text = await new Response(result.stream).text();
-      const data = JSON.parse(text);
-      res.status(200).json(data);
-    } catch (err) {
       res.status(500).json({ error: 'storage_read_failed', message: String(err) });
     }
     return;
@@ -49,7 +49,7 @@ module.exports = async function handler(req, res) {
         return;
       }
       await put(PATHNAME, JSON.stringify(body), {
-        access: 'private',
+        access: 'public',
         addRandomSuffix: false,
         allowOverwrite: true,
         contentType: 'application/json'
