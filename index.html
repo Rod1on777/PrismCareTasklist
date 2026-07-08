@@ -371,7 +371,7 @@
       <button class="btn danger" id="btnReset">Очистить вкладку</button>
       <input type="file" id="csvInput" accept=".csv,text/csv">
     </div>
-    <p class="hint">Чек-лист общий для всей команды: изменения сохраняются на сервере, на других устройствах они появятся после обновления страницы.</p>
+    <p class="hint">Чек-лист общий для всей команды: изменения сохраняются на сервере не чаще раза в минуту (чтобы уложиться в бесплатный лимит хранилища), на других устройствах они появятся после обновления страницы.</p>
   </header>
 
   <div class="add-section-card" id="addSectionCard" style="display:none;">
@@ -440,8 +440,10 @@
 
   let state = defaultState();
   let editingTabId = null;
-  let saveTimer = null;
   let isLoaded = false;
+  let isDirty = false;
+  let isSaving = false;
+  const SAVE_INTERVAL_MS = 300000; // раз в минуту, чтобы экономить лимит записей в бесплатном хранилище
 
   function setSyncState(text, mode){
     const el = document.getElementById("syncState");
@@ -464,28 +466,55 @@
           setSyncState("Загружено", "ok");
           isLoaded = true;
           render();
+          startAutoSave();
           return;
         }
       }
-      // На сервере ещё ничего нет — сохраняем туда набор по умолчанию
+      // На сервере ещё ничего нет — сохраняем туда набор по умолчанию сразу,
+      // не дожидаясь минуты, чтобы не показывать пустой чек-лист другим
       isLoaded = true;
       render();
-      scheduleSave();
+      startAutoSave();
+      saveToServer();
     }catch(e){
       setSyncState("Нет связи с сервером — работаем локально", "err");
       isLoaded = true;
       render();
+      startAutoSave();
     }
   }
 
+  // Помечает, что есть несохранённые изменения. Сама отправка на сервер
+  // происходит не сразу, а по таймеру раз в минуту (см. startAutoSave) —
+  // так один и тот же минутный интервал активности создаёт одну запись,
+  // а не одну на каждый клик.
   function scheduleSave(){
-    if(!isLoaded) return; // не сохранять поверх сервера, пока не загрузили актуальное состояние
-    setSyncState("Сохранение…", null);
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveToServer, 400);
+    if(!isLoaded) return;
+    isDirty = true;
+    setSyncState("Есть несохранённые изменения — сохранится в течение минуты", null);
+  }
+
+  function startAutoSave(){
+    setInterval(()=>{ if(isDirty) saveToServer(); }, SAVE_INTERVAL_MS);
+
+    // Подстраховка: если вкладку закрывают/сворачивают до истечения минуты,
+    // пробуем сохранить сразу, чтобы не терять последние изменения.
+    document.addEventListener("visibilitychange", ()=>{
+      if(document.visibilityState === "hidden" && isDirty) saveToServer();
+    });
+    window.addEventListener("beforeunload", ()=>{
+      if(!isDirty) return;
+      try{
+        const blob = new Blob([JSON.stringify({ tabs: state.tabs })], { type: "application/json" });
+        navigator.sendBeacon("/api/checklist", blob);
+      }catch(e){ /* sendBeacon недоступен — ничего страшного, потеряем максимум минуту изменений */ }
+    });
   }
 
   async function saveToServer(){
+    if(isSaving) return; // не запускать сохранение поверх ещё идущего
+    isSaving = true;
+    setSyncState("Сохранение…", null);
     try{
       const res = await fetch("/api/checklist", {
         method: "POST",
@@ -493,9 +522,12 @@
         body: JSON.stringify({ tabs: state.tabs })
       });
       if(!res.ok) throw new Error("bad status " + res.status);
+      isDirty = false;
       setSyncState("Сохранено", "ok");
     }catch(e){
-      setSyncState("Не удалось сохранить — проверьте связь и повторите", "err");
+      setSyncState("Не удалось сохранить — попробуем через минуту снова", "err");
+    }finally{
+      isSaving = false;
     }
   }
 
