@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Чек-лист клининга</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4F7F5;
+    --surface:#FFFFFF;
+    --border:#DCE4E1;
+    --text:#1B2422;
+    --text-muted:#6E7D79;
+    --accent:#0F6E64;
+    --accent-light:#E3F1EE;
+    --success:#2F9E68;
+    --danger:#C1483C;
+    --danger-light:#FBEAE8;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    transition:background .35s ease;
+  }
+  h1,h2,.brand-font{font-family:'Manrope',sans-serif;}
+
+  .app{
+    max-width:760px;
+    margin:0 auto;
+    padding:16px 16px 100px;
+  }
+
+  header.top{
+    position:sticky;
+    top:0;
+    background:var(--bg);
+    padding-top:12px;
+    padding-bottom:10px;
+    z-index:5;
+    transition:background .35s ease;
+  }
+  .top-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  h1{
+    font-size:clamp(20px,5vw,26px);
+    font-weight:800;
+    margin:0;
+    letter-spacing:-0.02em;
+  }
+  .sync-state{
+    font-size:12px;
+    color:var(--text-muted);
+    white-space:nowrap;
+    flex:0 0 auto;
+  }
+  .sync-state.err{color:var(--danger);}
+  .sync-state.ok{color:var(--success);}
+
+  .progress-wrap{margin-top:12px;}
+  .progress-labels{
+    display:flex;
+    justify-content:space-between;
+    font-size:13px;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+  .progress-labels b{color:var(--text);font-weight:600;}
+  .bar{
+    height:8px;
+    border-radius:99px;
+    background:var(--accent-light);
+    overflow:hidden;
+  }
+  .bar > span{
+    display:block;
+    height:100%;
+    background:var(--accent);
+    border-radius:99px;
+    transition:width .35s ease, background .35s ease;
+  }
+
+  /* ---- Вкладки помещений ---- */
+  .tabbar{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding:2px 2px 6px;
+    margin-top:14px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .tab-wrap{display:flex;align-items:center;gap:2px;flex:0 0 auto;}
+  .tab{
+    padding:10px 16px;
+    border-radius:12px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    color:var(--text-muted);
+    font-weight:700;
+    font-family:'Manrope',sans-serif;
+    font-size:14px;
+    white-space:nowrap;
+  }
+  .tab.active{
+    background:var(--tab-color);
+    color:#fff;
+    border-color:var(--tab-color);
+  }
+  .tab-edit{
+    background:transparent;
+    color:var(--text-muted);
+    font-size:13px;
+    padding:6px 7px;
+    border-radius:8px;
+  }
+  .tab-edit:hover{background:var(--accent-light);color:var(--accent);}
+  .tab-add{
+    padding:10px 14px;
+    border-radius:12px;
+    background:var(--surface);
+    border:1px dashed var(--border);
+    color:var(--text-muted);
+    font-weight:700;
+    font-family:'Manrope',sans-serif;
+    flex:0 0 auto;
+  }
+  .tab-add:hover{border-color:var(--accent);color:var(--accent);}
+
+  .tab-settings{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px 12px;
+    margin-top:4px;
+  }
+  .tab-settings input[type=text]{flex:1;min-width:140px;}
+  .tab-settings .label{font-size:12px;color:var(--text-muted);}
+
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:12px;
+  }
+  button{
+    font-family:'Inter',sans-serif;
+    cursor:pointer;
+    border:none;
+    border-radius:10px;
+    font-weight:600;
+    font-size:13.5px;
+  }
+  .btn{
+    padding:9px 14px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    color:var(--text);
+  }
+  .btn:hover{border-color:var(--accent);color:var(--accent);}
+  .btn.primary{
+    background:var(--accent);
+    color:#fff;
+    border:1px solid var(--accent);
+  }
+  .btn.primary:hover{filter:brightness(0.92);}
+  .btn.danger{color:var(--danger);}
+  .btn.danger:hover{border-color:var(--danger);background:var(--danger-light);}
+
+  #csvInput{display:none;}
+
+  .hint{
+    font-size:12px;
+    color:var(--text-muted);
+    margin-top:10px;
+    line-height:1.5;
+  }
+
+  main{margin-top:16px;display:flex;flex-direction:column;gap:14px;}
+
+  .empty{
+    text-align:center;
+    padding:48px 20px;
+    color:var(--text-muted);
+    background:var(--surface);
+    border:1px dashed var(--border);
+    border-radius:var(--radius);
+  }
+  .empty b{display:block;color:var(--text);font-size:16px;margin-bottom:4px;}
+
+  .section{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-left:5px solid var(--zone-color, var(--accent));
+    border-radius:var(--radius);
+    padding:14px 16px 12px;
+  }
+  .section-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .section-head-left{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+  }
+  .section-title{
+    font-size:16.5px;
+    font-weight:700;
+    margin:0;
+    word-break:break-word;
+  }
+  .section-meta{
+    font-size:12.5px;
+    color:var(--text-muted);
+    margin-top:2px;
+  }
+  .icon-btn{
+    background:transparent;
+    color:var(--text-muted);
+    font-size:16px;
+    line-height:1;
+    padding:4px 6px;
+    border-radius:8px;
+    flex:0 0 auto;
+  }
+  .icon-btn:hover{color:var(--danger);background:var(--danger-light);}
+
+  .section-bar{
+    height:5px;
+    border-radius:99px;
+    background:var(--accent-light);
+    margin-top:10px;
+    overflow:hidden;
+  }
+  .section-bar > span{
+    display:block;height:100%;
+    background:var(--zone-color, var(--accent));
+    border-radius:99px;
+    transition:width .3s ease;
+  }
+
+  ul.items{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:2px;}
+  li.item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:8px 4px;
+    border-radius:8px;
+  }
+  li.item:hover{background:var(--bg);}
+  li.item input[type=checkbox]{
+    width:19px;height:19px;
+    accent-color:var(--zone-color, var(--accent));
+    flex:0 0 auto;
+  }
+  li.item span.txt{
+    flex:1;
+    font-size:14.5px;
+    word-break:break-word;
+  }
+  li.item.done span.txt{
+    color:var(--text-muted);
+    text-decoration:line-through;
+  }
+
+  .add-item-row{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+  .add-item-row input{
+    flex:1;
+    min-width:0;
+  }
+
+  input[type=text]{
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:9px 11px;
+    border-radius:9px;
+    border:1px solid var(--border);
+    background:var(--bg);
+    color:var(--text);
+    outline:none;
+  }
+  input[type=text]:focus{border-color:var(--accent);background:var(--surface);}
+
+  /* круглые цветовые свотчи */
+  input[type=color]{
+    -webkit-appearance:none;
+    appearance:none;
+    width:22px;height:22px;
+    border:none;
+    border-radius:50%;
+    padding:0;
+    cursor:pointer;
+    background:none;
+    flex:0 0 auto;
+    margin-top:2px;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:0;border-radius:50%;}
+  input[type=color]::-webkit-color-swatch{border:2px solid var(--surface);border-radius:50%;}
+  input[type=color]::-moz-color-swatch{border:2px solid var(--surface);border-radius:50%;}
+
+  .add-section-card, .add-tab-card{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:12px;
+  }
+  .add-section-card input[type=text], .add-tab-card input[type=text]{flex:1;}
+
+  .legend{
+    font-size:12px;
+    color:var(--text-muted);
+    margin-top:16px;
+    line-height:1.5;
+  }
+  .legend .dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;
+  }
+
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="top-row">
+      <h1>Чек-лист клининга</h1>
+      <span class="sync-state" id="syncState">Загрузка…</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-labels">
+        <span id="progressScope">Прогресс по вкладке</span>
+        <b id="progressLabel">0 / 0</b>
+      </div>
+      <div class="bar"><span id="progressBar" style="width:0%"></span></div>
+    </div>
+
+    <div class="tabbar" id="tabbar"></div>
+    <div id="tabSettingsHost"></div>
+
+    <div class="toolbar">
+      <button class="btn primary" id="btnAddSectionToggle">+ Раздел</button>
+      <button class="btn" id="btnExport">Экспорт CSV</button>
+      <button class="btn" id="btnImportTrigger">Импорт CSV</button>
+      <button class="btn danger" id="btnReset">Очистить вкладку</button>
+      <input type="file" id="csvInput" accept=".csv,text/csv">
+    </div>
+    <p class="hint">Чек-лист общий для всей команды: изменения сохраняются на сервере, на других устройствах они появятся после обновления страницы.</p>
+  </header>
+
+  <div class="add-section-card" id="addSectionCard" style="display:none;">
+    <input type="text" id="newSectionName" placeholder="Название раздела, например «Кухня»" maxlength="60">
+    <button class="btn primary" id="btnConfirmAddSection">Добавить</button>
+  </div>
+
+  <div class="add-tab-card" id="addTabCard" style="display:none;">
+    <input type="text" id="newTabName" placeholder="Название помещения, например «Офис на Ленина»" maxlength="40">
+    <button class="btn primary" id="btnConfirmAddTab">Добавить</button>
+  </div>
+
+  <main id="sections"></main>
+
+  <p class="legend" id="legend"></p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Цветовая кодировка разделов — по мотивам стандартной системы клининга
+  // (красный — санузлы, синий — общие зоны, жёлтый — кухня, зелёный — зоны с продуктами)
+  const ZONE_COLORS = [
+    {hex:"#D64545", label:"Санузлы"},
+    {hex:"#3E7CB1", label:"Общие зоны"},
+    {hex:"#E0A72E", label:"Кухня"},
+    {hex:"#4C9A63", label:"Зоны с продуктами"}
+  ];
+
+  // Палитра для цвета вкладок (типов помещений)
+  const TAB_PALETTE = ["#1F6F8B","#E08D3C","#4C8C4A","#7B5EA7","#C1487D","#3E8E7E","#B0562E","#5B5FC7"];
+
+  function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+  function section(name, color, items){
+    return { id: uid(), name, color, items: items.map(t => ({ id: uid(), text: t, done:false })) };
+  }
+
+  function defaultState(){
+    const tabs = [
+      { id: uid(), name:"Офисное помещение", color: TAB_PALETTE[0], sections:[
+        section("Кабинеты", ZONE_COLORS[1].hex, ["Протереть столы и оргтехнику","Опустошить урны","Пропылесосить пол"]),
+        section("Санузлы", ZONE_COLORS[0].hex, ["Продезинфицировать сантехнику","Пополнить расходники"]),
+        section("Кухня / зона отдыха", ZONE_COLORS[2].hex, ["Вымыть посуду и поверхности","Проверить холодильник"])
+      ]},
+      { id: uid(), name:"Детский сад", color: TAB_PALETTE[1], sections:[
+        section("Игровые комнаты", ZONE_COLORS[3].hex, ["Продезинфицировать игрушки","Проветрить помещение","Протереть подоконники"]),
+        section("Спальная зона", ZONE_COLORS[1].hex, ["Сменить постельное бельё","Протереть кроватки"]),
+        section("Санузлы", ZONE_COLORS[0].hex, ["Продезинфицировать сантехнику","Пополнить расходники"])
+      ]},
+      { id: uid(), name:"Частный дом", color: TAB_PALETTE[2], sections:[
+        section("Кухня", ZONE_COLORS[2].hex, ["Протереть столешницы и плиту","Вымыть раковину"]),
+        section("Санузлы", ZONE_COLORS[0].hex, ["Продезинфицировать сантехнику"]),
+        section("Спальни", ZONE_COLORS[1].hex, ["Сменить постельное бельё","Пропылесосить полы"]),
+        section("Двор и терраса", ZONE_COLORS[3].hex, ["Подмести дорожки","Убрать садовую мебель"])
+      ]},
+      { id: uid(), name:"Квартира", color: TAB_PALETTE[3], sections:[
+        section("Кухня", ZONE_COLORS[2].hex, ["Вымыть посуду","Протереть поверхности"]),
+        section("Санузел", ZONE_COLORS[0].hex, ["Продезинфицировать сантехнику"]),
+        section("Гостиная", ZONE_COLORS[1].hex, ["Пропылесосить пол","Протереть пыль"])
+      ]}
+    ];
+    return { tabs, activeTabId: tabs[0].id };
+  }
+
+  let state = defaultState();
+  let editingTabId = null;
+  let saveTimer = null;
+  let isLoaded = false;
+
+  function setSyncState(text, mode){
+    const el = document.getElementById("syncState");
+    if(!el) return;
+    el.textContent = text;
+    el.classList.toggle("err", mode === "err");
+    el.classList.toggle("ok", mode === "ok");
+  }
+
+  // ---------- Синхронизация с сервером (общий чек-лист для всей команды) ----------
+  async function loadFromServer(){
+    setSyncState("Загрузка…", null);
+    try{
+      const res = await fetch("/api/checklist");
+      if(res.ok){
+        const data = await res.json();
+        if(data && Array.isArray(data.tabs) && data.tabs.length){
+          state.tabs = data.tabs;
+          state.activeTabId = state.tabs[0].id;
+          setSyncState("Загружено", "ok");
+          isLoaded = true;
+          render();
+          return;
+        }
+      }
+      // На сервере ещё ничего нет — сохраняем туда набор по умолчанию
+      isLoaded = true;
+      render();
+      scheduleSave();
+    }catch(e){
+      setSyncState("Нет связи с сервером — работаем локально", "err");
+      isLoaded = true;
+      render();
+    }
+  }
+
+  function scheduleSave(){
+    if(!isLoaded) return; // не сохранять поверх сервера, пока не загрузили актуальное состояние
+    setSyncState("Сохранение…", null);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveToServer, 400);
+  }
+
+  async function saveToServer(){
+    try{
+      const res = await fetch("/api/checklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tabs: state.tabs })
+      });
+      if(!res.ok) throw new Error("bad status " + res.status);
+      setSyncState("Сохранено", "ok");
+    }catch(e){
+      setSyncState("Не удалось сохранить — проверьте связь и повторите", "err");
+    }
+  }
+
+  function activeTab(){ return state.tabs.find(t=>t.id===state.activeTabId) || state.tabs[0]; }
+  function tabById(id){ return state.tabs.find(t=>t.id===id); }
+  function nextZoneColor(tab){ return ZONE_COLORS[tab.sections.length % ZONE_COLORS.length].hex; }
+  function nextTabColor(){ return TAB_PALETTE[state.tabs.length % TAB_PALETTE.length]; }
+
+  // ---------- Цветовая тема страницы под вкладку ----------
+  function hexToRgb(hex){
+    hex = hex.replace('#','');
+    if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+    const num = parseInt(hex,16);
+    return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
+  }
+  function mixWithWhite(hex, ratio){
+    const {r,g,b} = hexToRgb(hex);
+    const mr = Math.round(r + (255-r)*ratio);
+    const mg = Math.round(g + (255-g)*ratio);
+    const mb = Math.round(b + (255-b)*ratio);
+    return `rgb(${mr}, ${mg}, ${mb})`;
+  }
+  function applyTheme(tab){
+    const root = document.documentElement.style;
+    root.setProperty('--accent', tab.color);
+    root.setProperty('--accent-light', mixWithWhite(tab.color, 0.85));
+    root.setProperty('--bg', mixWithWhite(tab.color, 0.94));
+  }
+
+  // ---------- Мутации: вкладки ----------
+  function addTab(name){
+    name = name.trim();
+    if(!name) return;
+    const tab = { id: uid(), name, color: nextTabColor(), sections: [] };
+    state.tabs.push(tab);
+    state.activeTabId = tab.id;
+    render(); scheduleSave();
+  }
+  function setActiveTab(id){
+    state.activeTabId = id;
+    editingTabId = null;
+    render();
+  }
+  function toggleTabEdit(id){
+    editingTabId = (editingTabId === id) ? null : id;
+    render();
+  }
+  function renameTab(id, name){
+    const t = tabById(id);
+    if(!t) return;
+    name = name.trim();
+    if(name) t.name = name;
+    render(); scheduleSave();
+  }
+  function setTabColor(id, color){
+    const t = tabById(id);
+    if(!t) return;
+    t.color = color;
+    render(); scheduleSave();
+  }
+  function deleteTab(id){
+    if(state.tabs.length <= 1){ alert("Должна остаться хотя бы одна вкладка."); return; }
+    const t = tabById(id);
+    if(!confirm(`Удалить вкладку «${t.name}» вместе со всем чек-листом?`)) return;
+    state.tabs = state.tabs.filter(x=>x.id!==id);
+    if(state.activeTabId === id) state.activeTabId = state.tabs[0].id;
+    editingTabId = null;
+    render(); scheduleSave();
+  }
+
+  // ---------- Мутации: разделы и пункты ----------
+  function addSection(tabId, name){
+    name = name.trim();
+    if(!name) return;
+    const t = tabById(tabId);
+    t.sections.push({ id: uid(), name, color: nextZoneColor(t), items: [] });
+    render(); scheduleSave();
+  }
+  function deleteSection(tabId, sectionId){
+    const t = tabById(tabId);
+    const s = t.sections.find(s=>s.id===sectionId);
+    if(!s) return;
+    if(!confirm(`Удалить раздел «${s.name}» вместе со всеми пунктами?`)) return;
+    t.sections = t.sections.filter(s=>s.id!==sectionId);
+    render(); scheduleSave();
+  }
+  function setSectionColor(tabId, sectionId, color){
+    const t = tabById(tabId);
+    const s = t.sections.find(s=>s.id===sectionId);
+    if(!s) return;
+    s.color = color;
+    render(); scheduleSave();
+  }
+  function addItem(tabId, sectionId, text){
+    text = text.trim();
+    if(!text) return;
+    const t = tabById(tabId);
+    const s = t.sections.find(s=>s.id===sectionId);
+    if(!s) return;
+    s.items.push({ id: uid(), text, done:false });
+    render(); scheduleSave();
+  }
+  function toggleItem(tabId, sectionId, itemId){
+    const t = tabById(tabId);
+    const s = t.sections.find(s=>s.id===sectionId);
+    const it = s?.items.find(i=>i.id===itemId);
+    if(!it) return;
+    it.done = !it.done;
+    render(); scheduleSave();
+  }
+  function deleteItem(tabId, sectionId, itemId){
+    const t = tabById(tabId);
+    const s = t.sections.find(s=>s.id===sectionId);
+    if(!s) return;
+    s.items = s.items.filter(i=>i.id!==itemId);
+    render(); scheduleSave();
+  }
+  function resetActiveTab(){
+    const t = activeTab();
+    if(!confirm(`Очистить все разделы и пункты во вкладке «${t.name}»? Это действие нельзя отменить.`)) return;
+    t.sections = [];
+    render(); scheduleSave();
+  }
+
+  // ---------- Рендер ----------
+  function render(){
+    const tab = activeTab();
+    applyTheme(tab);
+
+    // прогресс по активной вкладке
+    let total=0, done=0;
+    tab.sections.forEach(s=> s.items.forEach(i=>{ total++; if(i.done) done++; }));
+    const pct = total ? Math.round(done/total*100) : 0;
+    document.getElementById("progressScope").textContent = `Прогресс: ${tab.name}`;
+    document.getElementById("progressLabel").textContent = `${done} / ${total}`;
+    document.getElementById("progressBar").style.width = pct + "%";
+
+    renderTabBar(tab);
+    renderTabSettings();
+    renderSections(tab);
+    renderLegend();
+  }
+
+  function renderTabBar(activeT){
+    const bar = document.getElementById("tabbar");
+    bar.innerHTML = "";
+    state.tabs.forEach(t=>{
+      const wrap = document.createElement("div");
+      wrap.className = "tab-wrap";
+      const btn = document.createElement("button");
+      btn.className = "tab" + (t.id===activeT.id ? " active" : "");
+      btn.style.setProperty("--tab-color", t.color);
+      btn.textContent = t.name;
+      btn.addEventListener("click", ()=>setActiveTab(t.id));
+      wrap.appendChild(btn);
+      if(t.id===activeT.id){
+        const edit = document.createElement("button");
+        edit.className = "tab-edit";
+        edit.title = "Настройки вкладки";
+        edit.textContent = "⚙";
+        edit.addEventListener("click", ()=>toggleTabEdit(t.id));
+        wrap.appendChild(edit);
+      }
+      bar.appendChild(wrap);
+    });
+    const addBtn = document.createElement("button");
+    addBtn.className = "tab-add";
+    addBtn.textContent = "+ Вкладка";
+    addBtn.addEventListener("click", ()=>{
+      const card = document.getElementById("addTabCard");
+      const showing = card.style.display !== "none";
+      card.style.display = showing ? "none" : "flex";
+      if(!showing) document.getElementById("newTabName").focus();
+    });
+    bar.appendChild(addBtn);
+  }
+
+  function renderTabSettings(){
+    const host = document.getElementById("tabSettingsHost");
+    host.innerHTML = "";
+    if(!editingTabId) return;
+    const t = tabById(editingTabId);
+    if(!t) return;
+    const panel = document.createElement("div");
+    panel.className = "tab-settings";
+    panel.innerHTML = `
+      <span class="label">Название:</span>
+      <input type="text" value="" maxlength="40" data-role="tab-name">
+      <span class="label">Цвет:</span>
+      <input type="color" value="${t.color}" data-role="tab-color">
+      <button class="btn danger" data-role="tab-delete">Удалить вкладку</button>
+      <button class="btn" data-role="tab-close">Готово</button>
+    `;
+    const nameInput = panel.querySelector('[data-role="tab-name"]');
+    nameInput.value = t.name;
+    nameInput.addEventListener("change", ()=>renameTab(t.id, nameInput.value));
+    nameInput.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); renameTab(t.id, nameInput.value); }});
+    panel.querySelector('[data-role="tab-color"]').addEventListener("input", e=>setTabColor(t.id, e.target.value));
+    panel.querySelector('[data-role="tab-delete"]').addEventListener("click", ()=>deleteTab(t.id));
+    panel.querySelector('[data-role="tab-close"]').addEventListener("click", ()=>{ editingTabId=null; render(); });
+    document.getElementById("tabSettingsHost").appendChild(panel);
+  }
+
+  function renderSections(tab){
+    const root = document.getElementById("sections");
+    root.innerHTML = "";
+
+    if(tab.sections.length===0){
+      root.innerHTML = `<div class="empty"><b>В этой вкладке пока пусто</b>Добавьте первый раздел, например «Кухня» или «Санузлы»</div>`;
+      return;
+    }
+
+    tab.sections.forEach(sec=>{
+      const sTotal = sec.items.length;
+      const sDone = sec.items.filter(i=>i.done).length;
+      const sPct = sTotal ? Math.round(sDone/sTotal*100) : 0;
+
+      const card = document.createElement("div");
+      card.className = "section";
+      card.style.setProperty("--zone-color", sec.color);
+
+      card.innerHTML = `
+        <div class="section-head">
+          <div class="section-head-left">
+            <input type="color" value="${sec.color}" title="Цвет раздела" data-role="section-color">
+            <div>
+              <p class="section-title"></p>
+              <p class="section-meta">${sDone} / ${sTotal} выполнено</p>
+            </div>
+          </div>
+          <button class="icon-btn" title="Удалить раздел" data-action="del-section">✕</button>
+        </div>
+        <div class="section-bar"><span style="width:${sPct}%"></span></div>
+        <ul class="items"></ul>
+        <div class="add-item-row">
+          <input type="text" placeholder="Новый пункт…" maxlength="120" data-role="new-item-input">
+          <button class="btn" data-action="add-item">Добавить</button>
+        </div>
+      `;
+      card.querySelector(".section-title").textContent = sec.name;
+      card.querySelector('[data-action="del-section"]').addEventListener("click", ()=>deleteSection(tab.id, sec.id));
+      card.querySelector('[data-role="section-color"]').addEventListener("input", e=>setSectionColor(tab.id, sec.id, e.target.value));
+
+      const ul = card.querySelector("ul.items");
+      sec.items.forEach(item=>{
+        const li = document.createElement("li");
+        li.className = "item" + (item.done ? " done" : "");
+        li.innerHTML = `
+          <input type="checkbox" ${item.done?"checked":""} aria-label="Отметить выполненным">
+          <span class="txt"></span>
+          <button class="icon-btn" title="Удалить пункт">✕</button>
+        `;
+        li.querySelector("span.txt").textContent = item.text;
+        li.querySelector('input[type=checkbox]').addEventListener("change", ()=>toggleItem(tab.id, sec.id, item.id));
+        li.querySelector('.icon-btn').addEventListener("click", ()=>deleteItem(tab.id, sec.id, item.id));
+        ul.appendChild(li);
+      });
+
+      const input = card.querySelector('[data-role="new-item-input"]');
+      const addBtn = card.querySelector('[data-action="add-item"]');
+      const submit = ()=>{ addItem(tab.id, sec.id, input.value); input.value=""; input.focus(); };
+      addBtn.addEventListener("click", submit);
+      input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); }});
+
+      root.appendChild(card);
+    });
+  }
+
+  function renderLegend(){
+    const el = document.getElementById("legend");
+    el.innerHTML = "Цвета разделов по умолчанию: " + ZONE_COLORS.map(z=>
+      `<span><span class="dot" style="background:${z.hex}"></span>${z.label}</span>`
+    ).join(" &nbsp; ") + " &nbsp; — цвет раздела и вкладки можно изменить кликом по цветному кружку.";
+  }
+
+  // ---------- CSV экспорт/импорт ----------
+  function csvEscape(val){
+    val = String(val ?? "");
+    if(/[",;\n]/.test(val)) val = '"' + val.replace(/"/g,'""') + '"';
+    return val;
+  }
+
+  function exportCSV(){
+    const rows = [["Вкладка","Цвет вкладки","Раздел","Цвет раздела","Пункт","Выполнено"]];
+    state.tabs.forEach(t=>{
+      if(t.sections.length===0){
+        rows.push([t.name, t.color, "", "", "", ""]);
+        return;
+      }
+      t.sections.forEach(s=>{
+        if(s.items.length===0){
+          rows.push([t.name, t.color, s.name, s.color, "", ""]);
+        }else{
+          s.items.forEach(i=> rows.push([t.name, t.color, s.name, s.color, i.text, i.done ? "Да" : "Нет"]));
+        }
+      });
+    });
+    const csv = "\uFEFF" + rows.map(r=>r.map(csvEscape).join(",")).join("\r\n");
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `cleaning-checklist-${date}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function parseCSV(text){
+    const rows = [];
+    let row = [], field = "", inQuotes = false;
+    for(let i=0;i<text.length;i++){
+      const c = text[i];
+      if(inQuotes){
+        if(c === '"'){
+          if(text[i+1] === '"'){ field += '"'; i++; }
+          else inQuotes = false;
+        } else field += c;
+      } else {
+        if(c === '"') inQuotes = true;
+        else if(c === ','){ row.push(field); field=""; }
+        else if(c === '\r'){ /* skip */ }
+        else if(c === '\n'){ row.push(field); rows.push(row); row=[]; field=""; }
+        else field += c;
+      }
+    }
+    if(field.length || row.length){ row.push(field); rows.push(row); }
+    return rows.filter(r => r.some(f => f && f.trim() !== ""));
+  }
+
+  function isValidHex(v){ return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test((v||"").trim()); }
+
+  function importCSVFile(file){
+    const reader = new FileReader();
+    reader.onload = e => {
+      let text = e.target.result;
+      if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      const rows = parseCSV(text);
+      if(rows.length === 0){ alert("Файл пуст или не удалось его прочитать."); return; }
+
+      let dataRows = rows;
+      const header = rows[0].map(h=>h.trim().toLowerCase());
+      if(header[0]?.includes("вкладк")) dataRows = rows.slice(1);
+
+      if(!confirm("Импорт заменит текущий чек-лист (все вкладки) данными из файла. Продолжить?")) return;
+
+      const tabsMap = new Map();
+      let tabColorCounter = 0;
+
+      dataRows.forEach(r=>{
+        const tabName = (r[0]||"").trim();
+        const tabColorRaw = (r[1]||"").trim();
+        const sectionName = (r[2]||"").trim();
+        const sectionColorRaw = (r[3]||"").trim();
+        const itemText = (r[4]||"").trim();
+        const doneRaw = (r[5]||"").trim().toLowerCase();
+        if(!tabName) return;
+
+        if(!tabsMap.has(tabName)){
+          const color = isValidHex(tabColorRaw) ? tabColorRaw : TAB_PALETTE[tabColorCounter % TAB_PALETTE.length];
+          tabColorCounter++;
+          tabsMap.set(tabName, { id: uid(), name: tabName, color, sections: new Map() });
+        }
+        const t = tabsMap.get(tabName);
+
+        if(!sectionName) return;
+        if(!t.sections.has(sectionName)){
+          const color = isValidHex(sectionColorRaw) ? sectionColorRaw : ZONE_COLORS[t.sections.size % ZONE_COLORS.length].hex;
+          t.sections.set(sectionName, { id: uid(), name: sectionName, color, items: [] });
+        }
+        if(itemText){
+          const done = ["да","yes","true","1","done"].includes(doneRaw);
+          t.sections.get(sectionName).items.push({ id: uid(), text: itemText, done });
+        }
+      });
+
+      const tabs = Array.from(tabsMap.values()).map(t => ({
+        id: t.id, name: t.name, color: t.color, sections: Array.from(t.sections.values())
+      }));
+
+      if(tabs.length === 0){ alert("Не удалось найти данные для импорта в этом файле."); return; }
+
+      state = { tabs, activeTabId: tabs[0].id };
+      editingTabId = null;
+      render(); scheduleSave();
+    };
+    reader.onerror = () => alert("Не удалось прочитать файл.");
+    reader.readAsText(file, "UTF-8");
+  }
+
+  // ---------- События интерфейса ----------
+  document.getElementById("btnAddSectionToggle").addEventListener("click", ()=>{
+    const card = document.getElementById("addSectionCard");
+    const showing = card.style.display !== "none";
+    card.style.display = showing ? "none" : "flex";
+    if(!showing) document.getElementById("newSectionName").focus();
+  });
+  document.getElementById("btnConfirmAddSection").addEventListener("click", ()=>{
+    const input = document.getElementById("newSectionName");
+    addSection(activeTab().id, input.value);
+    input.value = "";
+    document.getElementById("addSectionCard").style.display = "none";
+  });
+  document.getElementById("newSectionName").addEventListener("keydown", e=>{
+    if(e.key==="Enter"){ e.preventDefault(); document.getElementById("btnConfirmAddSection").click(); }
+  });
+
+  document.getElementById("btnConfirmAddTab").addEventListener("click", ()=>{
+    const input = document.getElementById("newTabName");
+    addTab(input.value);
+    input.value = "";
+    document.getElementById("addTabCard").style.display = "none";
+  });
+  document.getElementById("newTabName").addEventListener("keydown", e=>{
+    if(e.key==="Enter"){ e.preventDefault(); document.getElementById("btnConfirmAddTab").click(); }
+  });
+
+  document.getElementById("btnExport").addEventListener("click", exportCSV);
+  document.getElementById("btnImportTrigger").addEventListener("click", ()=> document.getElementById("csvInput").click());
+  document.getElementById("csvInput").addEventListener("change", e=>{
+    const file = e.target.files[0];
+    if(file) importCSVFile(file);
+    e.target.value = "";
+  });
+  document.getElementById("btnReset").addEventListener("click", resetActiveTab);
+
+  // ---------- Старт ----------
+  loadFromServer();
+})();
+</script>
+</body>
+</html>
