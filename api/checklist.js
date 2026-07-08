@@ -6,7 +6,12 @@
 const { put, head, BlobNotFoundError } = require('@vercel/blob');
 
 const PATHNAME = 'cleaning-checklist-state.json';
-const isConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
+// Vercel подключает Blob двумя способами: старый — статический токен
+// BLOB_READ_WRITE_TOKEN; новый (по умолчанию) — OIDC, при котором в проект
+// подставляются BLOB_STORE_ID и VERCEL_OIDC_TOKEN, а SDK сам обменивает их
+// на доступ. Проверяем оба варианта, чтобы не зависеть от того, какой из
+// них использует ваш проект.
+const isConfigured = !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 
 module.exports = async function handler(req, res) {
   if (!isConfigured) {
